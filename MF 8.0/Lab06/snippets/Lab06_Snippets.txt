@@ -1,0 +1,149 @@
+UPDATING THE MOCK SERVER
+
+Step 3
+
+var passport = require('passport-mfp-token-validation').Passport;
+   var mfpStrategy = require(&#39;passport-mfp-token-validation').Strategy;
+
+   passport.use(new mfpStrategy({
+      authServerUrl: 'http://localhost:9080/mfp/api',
+      confClientID: 'mockServer',
+      confClientPass: '123456',
+
+      analytics: {
+         onpremise: {
+            url: 'http://localhost:9080/analytics-service/rest/v3',
+            username: 'admin',
+            password: 'admin'
+         }
+      }
+   }));
+
+Step 4
+
+app.use(passport.initialize());
+
+Step 5
+
+app.get('/schedule',
+	  passport.authenticate('mobilefirst-strategy', {
+	        session: false,
+	        scope: 'restrictedData'
+	  }),
+
+	  function (req, res) {
+	    console.log('Schedule service was called');
+	    var obj = require("./data/schedule.json");
+	    res.json(obj);
+	  }
+	);
+
+*********************************************************************
+UPDATE THE MOBILE APPLICATION
+
+Step 2
+
+load() {
+	    console.log('---> called ScheduleProvider load');
+
+	    if (this.data) {
+	      // already loaded data
+	      return Promise.resolve(this.data);
+	    }
+
+	    // don't have the data yet
+	    return new Promise(resolve => {
+	      let dataRequest = new WLResourceRequest("http://<your local ip address>:4567/schedule", WLResourceRequest.GET);
+	      dataRequest.send().then((response) => {
+
+	        console.log('--> data loaded from adapter', response);
+	        this.data = response.responseJSON.delivery;
+	        resolve(this.data)
+	      }, (failure) => {
+	        console.log('--> failed to load data', failure);
+	        resolve('error')
+	      })
+	    });
+	  }
+
+    *********************************************************************
+    SECURE THE GOOGLE API
+
+    Step 1
+
+    calc(destinations) {
+	      console.log('---> called ScheduleProvider calc');
+	      if (this.distance) {
+	        // already loaded data
+	        return Promise.resolve(this.distance);
+	      }
+
+	      return new Promise(resolve => {
+	            let dataRequest = new WLResourceRequest("http://<your local ip address>:4567/distance", WLResourceRequest.GET);
+	            let curtime = Date.now();
+	            let origin = '50.019275,14.347424';
+	            let googleParams = 'origins=' + origin + '&destinations=' + destinations + '&departure\_time=' + curtime + '&traffic\_model=best\_guess';
+	            console.debug('google params', googleParams);
+	            dataRequest.setQueryParameter("origins", origin);
+	            dataRequest.setQueryParameter("destinations", destinations);
+	            dataRequest.setQueryParameter("departure\_time", curtime);
+	            dataRequest.setQueryParameter("traffic\_model", "best\_guess");
+	            dataRequest.send().then((response) => {
+	              console.log('--> data loaded from adapter', response);
+	              this.distance = response.responseJSON;
+	              console.debug('Schedule calc data', this.distance.rows[0].elements);
+	              resolve(this.distance.rows[0].elements);
+	            }, (failure) => {
+	              console.log('--> failed to load data', failure);
+	              resolve('error')
+	            })
+	          });
+	    }
+
+*********************************************************************
+ADD THE GOOGLE API INTO THE MOCKSERVER
+
+Step 1
+
+var request = require('request');
+
+Step 2
+
+app.get('/distance', passport.authenticate('mobilefirst-strategy', {
+	        session: false,
+	        scope: 'restrictedData'
+	    }), function (req, res) {
+	    console.log('Distance service was called');
+	    var googleURL = 'https://maps.googleapis.com:443/maps/api/distancematrix/json';
+	    var origins = req.query['origins'];
+	    var destinations = req.query['destinations'];
+	    var departure\_time = req.query['departure\_time'];
+	    var traffic\_model = req.query['traffic\_model'];
+	    var path = googleURL + '?origins=' + origins + '&destinations=' + destinations + '&departure\_time=' + departure\_time + '&traffic\_model=' + traffic\_model;
+	    console.log('--> requested path ' + path);
+
+	    var options = {
+	        uri: encodeURI(path),
+	        method: 'GET'
+	    };
+
+	    request(options, function(error, response, body) {
+	        if (!error && response.statusCode == 200) {
+	            res.json(JSON.parse(body))
+	        } else {
+	            res.json({"status": response.statusCode, "error": error, "fullResponse": response})
+	        }
+	    })
+	});
+
+*********************************************************************
+ADD THE DISTANCE CALCULATION INTO THE MOBILE APP
+
+Step 1
+
+//   this.schedule.calc(geos).then((results) => {
+	//       for (var i=0; i < results.length; i++) {
+	//           this.delivery[i].distance = results[i].distance.text;
+	//           this.delivery[i].duration = results[i].duration.text;
+	//       }
+	//   })

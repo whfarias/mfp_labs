@@ -1,0 +1,48 @@
+DEPLOYING MOCKSERVER TO BLUEMIX
+
+Step 11:
+
+// get the app environment from Cloud Foundry
+   var appEnv = cfenv.getAppEnv();
+
+   // start server on the specified port and binding host
+   app.listen(appEnv.port, '0.0.0.0', function() {
+     // print a message when the server starts listening
+     console.log("server starting on " + appEnv.url);
+   });
+
+Step 13:
+
+{
+	"name": "NodejsStarterApp",
+	"version": "0.0.1",
+	"private": true,
+	"scripts": {
+		"start": "node server.js"
+	},
+	"dependencies": {
+	  "express": "4.13.x",
+	  "cfenv": "1.0.x",
+	  "passport-mfp-token-validation": "8.0.x",
+	  "request": "2.74.x",
+	  "path": "0.12.x",
+	  "compression": "1.6.x",
+	  "body-parser": "1.15.x",
+	  "cors": "2.8.x"
+	},
+	"repository": {},
+	"engines": {
+		"node": "4.x"
+	}
+}
+
+**********************************************************
+UPDATING THE MOBILE APP TO USE MOCKSERVER IN BLUEMIX
+
+Step 2:
+
+let dataRequest = new WLResourceRequest("http://{Replace your hostname and remove braces}.mybluemix.net/schedule", WLResourceRequest.GET);
+
+Step 3:
+
+let dataRequest = new WLResourceRequest("http://{{Replace your hostname and remove braces}}.mybluemix.net/distance", WLResourceRequest.GET);

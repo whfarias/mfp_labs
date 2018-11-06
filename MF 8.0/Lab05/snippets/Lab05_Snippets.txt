@@ -1,0 +1,191 @@
+************************************************************
+MODIFY THE MOBILE APP TO REFERENCE THE NEW STORAGEPROVIDER
+
+Step 2:
+
+import {StorageProvider} from './providers/storage-provider/storage-provider';
+
+Step 3:
+
+providers: [PushProvider, StorageProvider]
+
+Step 4:
+
+constructor(private platform:Platform, renderer: Renderer, private app: App, private push: PushProvider, private storage: StorageProvider ) {
+
+Step 5:
+
+renderer.listenGlobal('document', 'mfpjsonjsloaded', () => {
+      console.log('--> MFP JSONStore API init complete');
+
+      this.storage.init();
+})
+
+************************************************************
+IMPLEMENT THE INIT() METHOD
+
+Step 1:
+
+console.log('--> JSONStore init function called');
+
+Step 2:
+
+let collections = {
+	      news: {
+	         searchFields: {text: 'string', date: 'string'}
+	      }
+};
+
+Step 3:
+
+WL.JSONStore.init( collections ).then((success) => {
+         console.log( '--> JSONStore init success')
+      }, (failure) => {
+         console.log( '->> JSONStore init failed', failure )
+})
+
+************************************************************
+IMPLEMENT THE PUT() METHOD
+
+Step 1:
+
+put(data) {
+
+}
+
+Step 2:
+
+console.log('--> JSONStore put function called');
+
+Step 3:
+
+let collectionName = 'news';
+let options = {};
+
+Step 4:
+
+WL.JSONStore.get(collectionName).add(data, options).then((success) => {
+         console.log('--> JSONStore put success')
+      }, (failure) => {
+         console.log('--> JSONStore put failed', failure)
+})
+
+Step 5:
+
+WL.JSONStore.get(collectionName).change(data, options).then((success) => {
+
+Step 6:
+
+let options = {
+         replaceCriteria: ['text', 'date'],
+         addNew: true,
+         markDirty: false
+};
+
+************************************************************
+IMPLEMENT THE GETALL() METHOD
+
+Step 1:
+
+getAll() {
+
+}
+
+Step 2:
+
+console.log('--> JSONStore getAll function called');
+
+Step 3:
+
+let collectionName = 'news';
+let options = {};
+
+Step 4:
+
+WL.JSONStore.get(collectionName).findAll(options).then((success) => {
+        console.log('--> JSONStore get docs success', success)
+      }, (failure) => {
+        console.log('--> JSONStore get docs failed', failure)
+})
+
+Step 6:
+
+console.log('--> JSONStore getAll function called');
+
+return new Promise(resolve => {
+
+})
+
+Step 7:
+
+return new Promise(resolve => {
+
+        let collectionName = 'news';
+        let options = {};
+
+        WL.JSONStore.get(collectionName).findAll(options).then((success) => {
+          console.log('--> JSONStore get docs success', success)
+        }, (failure) => {
+          console.log('--> JSONStore get docs failed', failure)
+        })
+})
+
+Step 8:
+
+WL.JSONStore.get(collectionName).findAll(options).then((success) => {
+          console.log('--> JSONStore get docs success', success)
+          resolve(success)
+        }, (failure) => {
+          console.log('--> JSONStore get docs failed', failure)
+          resolve('error')
+})
+
+************************************************************
+MODIFY THE NEWS PROVIDER TO PERSIST THE NEWS DATA FROM THE ADAPTER
+
+Step 2:
+
+import {StorageProvider} from '../storage-provider/storage-provider';
+
+Step 3:
+
+constructor(private storage: StorageProvider) {}
+
+Step 4:
+
+let dataRequest = new WLResourceRequest("/adapters/JavaHTTP/", WLResourceRequest.GET);
+
+     dataRequest.send().then((response) => {
+        console.log('--> data loaded from adapter', response);
+
+        this.data = response.responseJSON.news;
+      }, (failure) => {
+        console.log('--> failed to load data', failure);
+})
+
+Step 5:
+
+console.log('--> putting data into the JSONStore');
+
+Step 6:
+
+this.storage.put(this.data);
+
+************************************************************
+MODIFY THE NEWS PAGE CONTROLLER TO RETRIEVE DATA FROM JSONSTORE
+
+Step 2:
+
+import {StorageProvider} from '../../providers/storage-provider/storage-provider';
+
+Step 3:
+
+providers: [StorageProvider]
+
+Step 4:
+
+constructor(public nav: NavController, public newsData: StorageProvider) {
+
+Step 5:
+
+this.newsData.getAll().then((results) => {

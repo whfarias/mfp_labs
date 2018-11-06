@@ -1,0 +1,208 @@
+*********************************************************************
+MODIFY THE ADAPTER.XML
+
+<!--
+    Licensed Materials - Property of IBM
+    5725-I43 (C) Copyright IBM Corp. 2011, 2016. All Rights Reserved.
+    US Government Users Restricted Rights - Use, duplication or
+    disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
+-->
+<mfp:adapter name="employeeAdapter"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:mfp="http://www.ibm.com/mfp/integration"
+             xmlns:http="http://www.ibm.com/mfp/integration/http">
+
+    <displayName>employeeAdapter</displayName>
+    <description>employeeAdapter</description>
+    <connectivity>
+        <connectionPolicy xsi:type="http:HTTPConnectionPolicyType">
+            <protocol>http</protocol>
+            <domain>localhost</domain>
+            <port>4567</port>
+            <connectionTimeoutInMilliseconds>30000</connectionTimeoutInMilliseconds>
+            <socketTimeoutInMilliseconds>30000</socketTimeoutInMilliseconds>
+            <maxConcurrentConnectionsPerNode>50</maxConcurrentConnectionsPerNode>
+        </connectionPolicy>
+    </connectivity>
+
+    <procedure name="getRating"/>
+
+</mfp:adapter>
+
+*********************************************************************
+IMPLEMENT THE JAVASCRIPT ADAPTER
+
+function getRating() {
+    var input = {
+    method : 'get',
+    returnedContentType : 'json',
+    path : 'employees'
+    };
+
+    return MFP.Server.invokeHttp(input);
+}
+
+*********************************************************************
+CREATING A DYNAMIC PROPERTY IN THE ADAPTER
+
+function getRating() {
+  var endpoint = MFP.Server.getPropertyValue("endpoint");
+  var input = {
+      method : 'get',
+      returnedContentType : 'json',
+      path : endpoint
+  };
+
+  return MFP.Server.invokeHttp(input);
+}
+
+*********************************************************************
+MODIFY THE JAVA ADAPTER CODE
+
+package com.sample;
+
+	import org.apache.http.HttpHost;
+	import org.apache.http.HttpResponse;
+	import org.apache.http.HttpStatus;
+	import org.apache.http.client.methods.HttpGet;
+	import org.apache.http.client.methods.HttpUriRequest;
+	import org.apache.http.impl.client.CloseableHttpClient;
+	import org.apache.http.impl.client.HttpClientBuilder;
+	import org.apache.wink.json4j.utils.XML;
+	import org.xml.sax.SAXException;
+
+	import javax.servlet.ServletOutputStream;
+	import javax.servlet.http.HttpServletResponse;
+	import javax.ws.rs.GET;
+	import javax.ws.rs.Path;
+	import javax.ws.rs.Produces;
+	import javax.ws.rs.QueryParam;
+	import javax.ws.rs.core.Context;
+	import java.io.IOException;
+	import java.nio.charset.Charset;
+	import com.ibm.json.java.JSONObject;
+
+	@Path("/")
+	public class JavaHTTPResource {
+
+		private static CloseableHttpClient client;
+		private static HttpHost host;
+
+		public static void init() {
+			client = HttpClientBuilder.create().build();
+			host = new HttpHost("localhost", 4567, "http");
+		}
+
+		public void execute(HttpUriRequest req, HttpServletResponse resultResponse)
+				throws IOException,
+				IllegalStateException, SAXException {
+			HttpResponse JSONResponse = client.execute(host, req);
+			ServletOutputStream os = resultResponse.getOutputStream();
+			if (JSONResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK){
+				resultResponse.addHeader("Content-Type", "application/json");
+				JSONObject result = JSONObject.parse(JSONResponse.getEntity().getContent());
+				String json = result.toString();
+				os.write(json.getBytes(Charset.forName("UTF-8")));
+
+			}else{
+				resultResponse.setStatus(JSONResponse.getStatusLine().getStatusCode());
+				JSONResponse.getEntity().getContent().close();
+				os.write(JSONResponse.getStatusLine().getReasonPhrase().getBytes());
+			}
+			os.flush();
+			os.close();
+		}
+
+		@GET
+		@Produces("application/json")
+		public void get(@Context HttpServletResponse response)
+				throws IOException, IllegalStateException, SAXException {
+
+				execute(new HttpGet("/news"), response);
+
+		}
+
+	}
+
+*********************************************************************
+MODIFY THE APP TO USE EMPLOYEESADAPTER
+
+import {Injectable} from '@angular/core';
+
+	@Injectable()
+	export class EmployeeProvider {
+	  data: any = null;
+
+	  constructor() {}
+
+	  load() {
+	    console.log('---> called EmployeeProvider load');
+
+	    if (this.data) {
+	      // already loaded data
+	      return Promise.resolve(this.data);
+	    }
+
+	    // don't have the data yet
+	    return new Promise(resolve => {
+	      // We're using Angular Http provider to request the data,
+	      // then on the response it'll map the JSON data to a parsed JS object.
+	      // Next we process the data and resolve the promise with the new data.
+	      let dataRequest = new WLResourceRequest ("/adapters/employeeAdapter/getRating", WLResourceRequest.GET);
+	      dataRequest.send().then((response)=> {
+	        console.log ('--> data loaded from adapter', response);
+	        this.data=response.responseJSON.results;
+	        resolve(this.data);
+	      }, (failure) => {
+	        console.log ('--> failed to load data', failure);
+	        resolve ('error');
+	      })
+
+	    });
+	  }
+	}
+
+*********************************************************************
+MODIFY THE APP TO USE NEWSJAVAADAPTER
+
+import {Injectable} from '@angular/core';
+
+	@Injectable()
+	export class NewsProvider {
+	  data: any = null;
+
+	  constructor() {}
+
+	  load() {
+	    console.log('---> called NewsProvider load');
+
+	    if (this.data) {
+	      // already loaded data
+	      return Promise.resolve(this.data);
+	    }
+
+	    // don't have the data yet
+	    return new Promise(resolve => {
+	      // We're using Angular Http provider to request the data,
+	      // then on the response it'll map the JSON data to a parsed JS object.
+	      // Next we process the data and resolve the promise with the new data.
+	     let dataRequest = new WLResourceRequest ("/adapters/JavaHTTP/", WLResourceRequest.GET);
+	      dataRequest.send().then((response)=> {
+	        console.log ('--> data loaded from adapter', response);
+	        this.data=response.responseJSON.news;
+	        resolve(this.data);
+	      }, (failure) => {
+	        console.log ('--> failed to load data', failure);
+	        resolve ('error');
+	      })
+	    });
+	  }
+	}
+
+*********************************************************************
+ADD THE MOBILEFIRST TYPINGS INTO THE APP
+
+/// <reference path="main/ambient/es6-shim/index.d.ts" />
+/// <reference path="../plugins/cordova-plugin-mfp/typings/worklight.d.ts" />
+/// <reference path="../plugins/cordova-plugin-mfp-jsonstore/typings/jsonstore.d.ts" />
+/// <reference path="../plugins/cordova-plugin-mfp-push/typings/mfppush.d.ts" />

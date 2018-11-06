@@ -1,0 +1,12 @@
+this.AuthHandler.handleChallenge = ((response) => {
+        console.log('--> inside handleChallenge');
+
+        if(response.errorMsg){
+          var msg = response.errorMsg + '<br>';
+          msg += 'Remaining attempts: ' + response.remainingAttempts;
+          WL.Logger.error("Auth error: " + response.errorMsg);
+          WL.Logger.send();
+        }
+
+        this.displayLogin(msg);
+})
